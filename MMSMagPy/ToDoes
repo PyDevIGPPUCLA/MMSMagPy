@@ -1,0 +1,7 @@
+2016 Apr 21 print panel, plot is shrink
+2016 Apr 21 adapt to new mms file system and format
+2016 Apr 21 check for exec timing, optimize
+2016 Apr 21 open a file by day, hr (0:23) and 10 interval (00:50)
+2016 Apr 21 dialog does not close cleanly when close with close button or
+    quit in main panel
+    write(close for main)

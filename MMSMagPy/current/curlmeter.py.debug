@@ -1,0 +1,153 @@
+from math import pi
+import numpy
+from numpy.core.umath_tests import inner1d
+from numpy import transpose, cross, sqrt, array
+# from scipy.linalg import inv
+# from numpy.linalg import tensorinv
+
+
+def poof(x, y):
+    return "poof"
+
+
+def norm(matrix):
+    norml = sqrt(inner1d(matrix, matrix))
+    if norml == 0:
+        return matrix
+    return matrix / norml
+
+
+def printMatrix(mess, matrix):
+    print("    ", mess)
+    for m in matrix:
+        print("    ", m[:])
+
+
+def printMag(mess, mags):
+    print("    ", mess)
+    npts = len(mags[0])
+    for i in range(npts):
+        print(mags[:, i])
+
+
+def printVectors2(mess, v1, v2):
+    print("    ", mess)
+    print("    ", v1[:])
+    print("    ", v2[:])
+
+
+def printVectors3(mess, v1, v2, v3):
+    print("    ", mess)
+    print("    ", v1[:])
+    print("    ", v2[:])
+    print("    ", v3[:])
+
+
+def curlometer(magData, posData, qlfactor=1, curlb=1):
+    #  magData 16 column array of bfields
+#   sate_no = [1, 2, 3, 4]
+    miu3 = (10.0 ** -4) * 4.0 * pi
+#   print("miu3", miu3)
+#   print(magData[0:4])
+    np = len(magData[0])
+    normj = numpy.empty((3, np))
+    normdirect = numpy.empty((3,  np, 3))
+    combos = [[0, 1, 2], [0, 2, 3], [0, 3, 1]]
+    for count in range(3):
+        i, j, k = combos[count]
+        mag0 = magData[i * 4: i * 4 + 3, :]
+        mag1 = magData[j * 4: j * 4 + 3, :]
+        mag2 = magData[k * 4: k * 4 + 3, :]
+        pos0 = posData[i * 4: i * 4 + 3, :]
+        pos1 = posData[j * 4: j * 4 + 3, :]
+        pos2 = posData[k * 4: k * 4 + 3, :]
+#       printMag("mag0", mag0)
+#       printMag("mag1", mag1)
+#       printMag("mag2", mag2)
+        magd1 = transpose(mag1 - mag0)
+        magd2 = transpose(mag2 - mag0)
+#       printMag("magd1", magd1)
+#       printMag("magd2", magd2)
+#       r10 = transpose(posData[j * 4: j * 4 + 3])
+#       r20 = transpose(posData[k * 4: k * 4 + 3])
+        r10 = transpose(pos1 - pos0)
+        r20 = transpose(pos2 - pos0)
+        if count == 5:
+            print(r10.shape)
+            printVectors2("r10", r10[0, :], r10[1, :])
+            printVectors2("r20", r20[0, :], r20[1, :])
+        #  normal direction, normn
+        normn = numpy.cross(r10, r20)
+        norml = sqrt(inner1d(normn, normn))
+        for i in range(np):
+            normn[i, :] = norm(normn[i, :])
+            if count == 5:
+                print("   ", i, normn[i])
+        if count == 5:
+            printMag("magd1", magd1)
+            printMag("magd2", magd2)
+            printMag("r20", r20)
+            printMag("r10", r10)
+            print((magd1 * r20).sum(axis=1))
+            print("norml", norml, miu3)
+        # calculate current density along normal direction
+        tcurrent = ((magd1 * r20).sum(axis=1) - (magd2 * r10).sum(axis=1)) / (norml * miu3)
+        normdirect[count, :, :] = normn
+        normj[count, :] = tcurrent
+        if count == 5:
+            print('tcurrent', tcurrent)
+            print('normdir', normdirect[count, :])
+        print('normj ' + str(count), normj[count, :])
+    normat = [0] * np
+    invmat = [0] * np
+    current = numpy.empty((4, np))
+    currenT = numpy.empty((4, np))
+    currenT[0:3, 0] = array([3.4522547e+10, -30230.243, -3.4522516e+10])
+    currenT[0:3, 1] = array([6.9045093e+10, -60460.487, -6.9045032e+10])
+#   x = array([[1, 2, 3], [0, 2, 1], [1, 1, 1]])
+    for i in range(np):
+        matrix = numpy.matrix(normdirect[:, i, :])
+#       matrix = numpy.matrix(x)
+#       print(i, matrix.shape, type(matrix))
+        printMatrix("normDirect", matrix)
+        print("Matrix 0", matrix[0, :])
+        print("Matrix 1", matrix[1, :])
+        print("Matrix 2", matrix[2, :])
+        normat[i] = matrix.T
+        printMatrix("tranpose ", matrix.T)
+        invmat[i] = normat[i].I
+        printMatrix("inverse ", normat[i].I)
+        current[0:3, i] = normj[:, i] * invmat[i]
+        C_Total = sqrt((current[0:3, i] * current[0:3, i]).sum())
+        current[3, i] = C_Total
+    print("CURRENT", current)
+    return current
+
+
+def genOthers(posData):
+#   volm = [0] * np          # volume
+#   surf = [0] * np          # surface area
+#   leng = [0] * np          # length
+    pos0 = posData[0:2]
+    pos1 = posData[4:6]
+    pos2 = posData[8:10]
+    pos3 = posData[12:14]
+    R10 = numpy.abs(pos1 - pos0)
+    r10 = pos1 - pos0
+    r12 = pos1 - pos0
+    R20 = pos2 - R10
+    r20 = pos2 - pos0
+    r21 = pos2 - pos1
+    R30 = pos3 - R10
+    r30 = pos3 - pos0
+    r31 = pos3 - pos1
+    r32 = pos3 - pos2
+    tArray = transpose(numpy.cross(R20, R30))
+    volm = (R10 * tArray) / 6.0
+    surf = norm(cross(R20, R30)) + norm(cross(r10, r20)) + \
+        norm(cross(r10, r30)) + norm(cross(r12, r32))
+    leng = norm(r10) + norm(r20) + norm(r30) + \
+        norm(r21) + norm(r31) + norm(r32)
+    idealvol = ((leng / 6.0) ** 3) * 0.117851
+    qlfactor = volm / idealvol
+    return surf, leng, idealvol, qlfactor
